@@ -1,0 +1,8 @@
+allowBuilds:
+  ffmpeg-static: set this to true or false
+  sharp: set this to true or false
+  tesseract.js: set this to true or false
+onlyBuiltDependencies:
+  - ffmpeg-static
+  - sharp
+  - tesseract.js
