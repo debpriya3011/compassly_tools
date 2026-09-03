@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Tool } from "../../lib/catalog";
 import { workflowGroupFor } from "../../lib/workflow-routing";
 import ColorToolClient from "./color-tool-client";
-import CsvToExcelClient from "./csv-to-excel-client";
+import DocDataToolClient from "./doc-data-tool-client";
 import DeveloperToolClient from "./developer-tool-client";
 import GeneralUtilityClient from "./general-utility-client";
 import FinanceToolClient from "./finance-tool-client";
@@ -58,7 +58,8 @@ function GenericTool({ tool }: { tool: Tool }) {
 export default function ToolClient({ tool }: { tool: Tool }) {
   switch (workflowGroupFor(tool)) {
     case "csv-to-excel":
-      return <CsvToExcelClient />;
+    case "document-data":
+      return <DocDataToolClient tool={tool} />;
     case "image-compressor":
     case "image":
       return <ImageToolClient tool={tool} />;

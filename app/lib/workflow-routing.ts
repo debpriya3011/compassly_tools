@@ -2,6 +2,7 @@ import type { Tool } from "./catalog";
 
 export type WorkflowGroup =
   | "csv-to-excel"
+  | "document-data"
   | "image-compressor"
   | "image"
   | "pdf"
@@ -16,7 +17,8 @@ export type WorkflowGroup =
   | "unimplemented";
 
 export function workflowGroupFor(tool: Tool): WorkflowGroup {
-  if (tool.slug === "csv-to-excel") return "csv-to-excel";
+  if (tool.slug === "csv-to-excel" || tool.category === "Document & Data Converters")
+    return "document-data";
   if (tool.slug === "image-compressor") return "image-compressor";
   if (tool.category === "Image Tools") return "image";
   if (tool.category === "PDF Tools" || tool.category === "PDF Converters")
