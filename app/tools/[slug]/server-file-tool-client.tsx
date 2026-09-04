@@ -9,10 +9,20 @@ const acceptByCategory: Record<string, string> = {
   "Audio Tools": "audio/*,.m4a,.wav,.mp3",
 };
 
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return "0 Bytes";
+  return bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 export default function ServerFileToolClient({ tool }: { tool: Tool }) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [inputSize, setInputSize] = useState<number | null>(null);
+  const [outputSize, setOutputSize] = useState<number | null>(null);
 
   // Image & Video Resize / Crop Parameters
   const [width, setWidth] = useState("");
@@ -109,6 +119,9 @@ export default function ServerFileToolClient({ tool }: { tool: Tool }) {
     if (!file) return setStatus("Choose a file first.");
     setBusy(true);
     setStatus("");
+    setOutputSize(null);
+    setInputSize(file.size);
+
     try {
       const form = new FormData();
       form.append("file", file);
@@ -135,6 +148,8 @@ export default function ServerFileToolClient({ tool }: { tool: Tool }) {
         return;
       }
       const blob = await response.blob();
+      setOutputSize(blob.size);
+
       const disposition = response.headers.get("content-disposition") || "";
       const downloadedName =
         disposition.match(/filename="([^"]+)"/)?.[1] || `${tool.slug}-output`;
@@ -210,9 +225,22 @@ export default function ServerFileToolClient({ tool }: { tool: Tool }) {
                 id="server-file"
                 type="file"
                 accept={acceptByCategory[tool.category]}
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] || null;
+                  setFile(selected);
+                  if (selected) setInputSize(selected.size);
+                  else setInputSize(null);
+                  setOutputSize(null);
+                }}
               />
             </div>
+
+            {/* Selected File Details */}
+            {file && (
+              <div style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>
+                Selected File: <strong style={{ color: "#10213a" }}>{file.name}</strong> ({formatBytes(file.size)})
+              </div>
+            )}
 
             {/* REAL-TIME LIVE VIDEO PREVIEW PLAYER */}
             {file && isVideoTool && (
@@ -353,7 +381,49 @@ export default function ServerFileToolClient({ tool }: { tool: Tool }) {
         {status && (
           <div className="result" style={{ marginTop: "1.25rem", padding: "1.25rem", borderRadius: "12px" }}>
             <strong style={{ fontSize: "1.2rem", color: "var(--text-color, #0f172a)" }}>Result Status</strong>
-            <p style={{ margin: "0.5rem 0 1rem 0", fontWeight: "500" }}>{status}</p>
+            <p style={{ margin: "0.5rem 0 0.75rem 0", fontWeight: "500" }}>{status}</p>
+
+            {/* Before & After Size Badge */}
+            {inputSize !== null && outputSize !== null && (
+              <div
+                className="size-comparison-badge"
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  padding: "0.6rem 0.9rem",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  margin: "0.5rem 0 1rem 0",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Original Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(inputSize)}</strong>
+                </div>
+                <span style={{ color: "#94a3b8", fontWeight: "bold" }}>➔</span>
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Processed Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(outputSize)}</strong>
+                </div>
+                <div
+                  style={{
+                    padding: "0.25rem 0.6rem",
+                    borderRadius: "16px",
+                    fontSize: "0.8rem",
+                    fontWeight: "bold",
+                    background: outputSize <= inputSize ? "#dcfce7" : "#e0f2fe",
+                    color: outputSize <= inputSize ? "#15803d" : "#0369a1",
+                  }}
+                >
+                  {outputSize <= inputSize
+                    ? `📉 ${((1 - outputSize / inputSize) * 100).toFixed(1)}% Smaller`
+                    : `📈 +${(((outputSize - inputSize) / inputSize) * 100).toFixed(1)}%`}
+                </div>
+              </div>
+            )}
 
             {outputUrl && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

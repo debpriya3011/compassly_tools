@@ -219,7 +219,14 @@ async function renderFileToCanvas(
   const rawText = await file.text();
   const tag = type === "slide" ? "a:t" : "w:t";
   const extracted = extractXmlText(rawText, tag);
-  return renderTextToCanvas(file.name, extracted, type, format);
+  return renderTextToCanvas(file.name, extracted, type === "table" ? "document" : type, format);
+}
+
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return "0 Bytes";
+  return bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export default function DocDataToolClient({ tool }: { tool: Tool }) {
@@ -230,6 +237,9 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
   const [targetFormat, setTargetFormat] = useState("xlsx");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [inputSize, setInputSize] = useState<number | null>(null);
+  const [outputSize, setOutputSize] = useState<number | null>(null);
 
   const [tablePreview, setTablePreview] = useState<Cell[][]>([]);
   const [jsonPreview, setJsonPreview] = useState("");
@@ -243,6 +253,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
     setImagePreviewUrl("");
     setDownloadUrl("");
     setStatus("");
+    setOutputSize(null);
   };
 
   const convert = async () => {
@@ -256,6 +267,9 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
 
     setBusy(true);
     handleReset();
+
+    const currentInputBytes = file ? file.size : jsonText ? new Blob([jsonText]).size : null;
+    setInputSize(currentInputBytes);
 
     try {
       const XLSX = await import("xlsx");
@@ -275,6 +289,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
         const blob = new Blob([wbout], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
+        setOutputSize(blob.size);
         setDownloadUrl(URL.createObjectURL(blob));
         setDownloadName(`${baseName}.xlsx`);
         setStatus(`Successfully converted ${rows.length.toLocaleString()} rows to Excel.`);
@@ -291,6 +306,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
 
         setTablePreview(rows.slice(0, 10));
         const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+        setOutputSize(blob.size);
         setDownloadUrl(URL.createObjectURL(blob));
         setDownloadName(`${baseName}.csv`);
         setStatus("Successfully converted Excel file to CSV.");
@@ -307,6 +323,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
 
         setJsonPreview(jsonStr.substring(0, 2000));
         const blob = new Blob([jsonStr], { type: "application/json" });
+        setOutputSize(blob.size);
         setDownloadUrl(URL.createObjectURL(blob));
         setDownloadName(`${baseName}.json`);
         setStatus(`Successfully extracted ${jsonData.length} JSON objects.`);
@@ -331,6 +348,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
         const blob = new Blob([wbout], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
+        setOutputSize(blob.size);
         setDownloadUrl(URL.createObjectURL(blob));
         setDownloadName("converted_json.xlsx");
         setStatus(`Converted ${jsonArray.length} JSON entries to Excel.`);
@@ -352,6 +370,8 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
           dataUrl = renderTableToCanvas(rows, fmt);
         }
 
+        const estBytes = Math.round((dataUrl.length - 22) * 0.75);
+        setOutputSize(estBytes);
         setImagePreviewUrl(dataUrl);
         setDownloadUrl(dataUrl);
         setDownloadName(`${baseName}.${fmt}`);
@@ -364,6 +384,8 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
         const fmt = slug.endsWith("jpg") ? "jpg" : "png";
         const dataUrl = await renderFileToCanvas(file, "document", fmt);
 
+        const estBytes = Math.round((dataUrl.length - 22) * 0.75);
+        setOutputSize(estBytes);
         setImagePreviewUrl(dataUrl);
         setDownloadUrl(dataUrl);
         setDownloadName(`${baseName}.${fmt}`);
@@ -376,6 +398,8 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
         const fmt = slug.endsWith("jpg") ? "jpg" : "png";
         const dataUrl = await renderFileToCanvas(file, "slide", fmt);
 
+        const estBytes = Math.round((dataUrl.length - 22) * 0.75);
+        setOutputSize(estBytes);
         setImagePreviewUrl(dataUrl);
         setDownloadUrl(dataUrl);
         setDownloadName(`${baseName}.${fmt}`);
@@ -400,6 +424,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
           if (targetFormat === "csv") {
             const csvText = XLSX.utils.sheet_to_csv(sheet);
             const blob = new Blob([csvText], { type: "text/csv" });
+            setOutputSize(blob.size);
             setDownloadUrl(URL.createObjectURL(blob));
             setDownloadName(`${baseName}.csv`);
           } else if (targetFormat === "json") {
@@ -407,6 +432,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
             const jsonStr = JSON.stringify(jsonData, null, 2);
             setJsonPreview(jsonStr.substring(0, 1500));
             const blob = new Blob([jsonStr], { type: "application/json" });
+            setOutputSize(blob.size);
             setDownloadUrl(URL.createObjectURL(blob));
             setDownloadName(`${baseName}.json`);
           } else {
@@ -414,6 +440,7 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
             const blob = new Blob([wbout], {
               type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             });
+            setOutputSize(blob.size);
             setDownloadUrl(URL.createObjectURL(blob));
             setDownloadName(`${baseName}.xlsx`);
           }
@@ -423,6 +450,8 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
           const rawText = await file.text();
           const fmt = targetFormat === "jpg" ? "jpg" : "png";
           const dataUrl = renderTextToCanvas(file.name, rawText, "document", fmt);
+          const estBytes = Math.round((dataUrl.length - 22) * 0.75);
+          setOutputSize(estBytes);
           setImagePreviewUrl(dataUrl);
           setDownloadUrl(dataUrl);
           setDownloadName(`${baseName}.${fmt}`);
@@ -450,11 +479,21 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
           <input
             type="file"
             onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
+              const selected = e.target.files?.[0] || null;
+              setFile(selected);
+              if (selected) setInputSize(selected.size);
+              else setInputSize(null);
               handleReset();
             }}
           />
         </div>
+
+        {/* File Details Bar */}
+        {file && (
+          <div style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>
+            Selected File: <strong style={{ color: "#10213a" }}>{file.name}</strong> ({formatBytes(file.size)})
+          </div>
+        )}
 
         {/* Optional JSON Textarea for JSON to Excel */}
         {slug === "json-to-excel" && (
@@ -497,11 +536,53 @@ export default function DocDataToolClient({ tool }: { tool: Tool }) {
           {busy ? "Converting File…" : `Run ${tool.name}`}
         </button>
 
-        {/* Status Message */}
+        {/* Status Message & Size Comparison Badge */}
         {status && (
           <div className="result" style={{ marginTop: "1rem", padding: "1rem", borderRadius: "10px" }}>
             <strong>Conversion Status</strong>
-            <p style={{ margin: "0.5rem 0 0 0" }}>{status}</p>
+            <p style={{ margin: "0.5rem 0 0.5rem 0" }}>{status}</p>
+
+            {/* Before & After Size Badge */}
+            {inputSize !== null && outputSize !== null && (
+              <div
+                className="size-comparison-badge"
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  padding: "0.6rem 0.9rem",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  margin: "0.5rem 0 0 0",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Original Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(inputSize)}</strong>
+                </div>
+                <span style={{ color: "#94a3b8", fontWeight: "bold" }}>➔</span>
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Output Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(outputSize)}</strong>
+                </div>
+                <div
+                  style={{
+                    padding: "0.25rem 0.6rem",
+                    borderRadius: "16px",
+                    fontSize: "0.8rem",
+                    fontWeight: "bold",
+                    background: outputSize <= inputSize ? "#dcfce7" : "#e0f2fe",
+                    color: outputSize <= inputSize ? "#15803d" : "#0369a1",
+                  }}
+                >
+                  {outputSize <= inputSize
+                    ? `📉 ${((1 - outputSize / inputSize) * 100).toFixed(1)}% Smaller`
+                    : `📈 +${(((outputSize - inputSize) / inputSize) * 100).toFixed(1)}%`}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

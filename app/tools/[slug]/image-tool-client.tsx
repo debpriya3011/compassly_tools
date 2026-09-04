@@ -449,7 +449,49 @@ export default function ImageToolClient({ tool }: { tool: Tool }) {
         {status && (
           <div className="result" style={{ marginTop: "1.25rem", padding: "1.25rem", borderRadius: "12px" }}>
             <strong style={{ fontSize: "1.2rem", color: "var(--text-color, #0f172a)" }}>Result Status</strong>
-            <p style={{ margin: "0.5rem 0 1rem 0", fontWeight: "bold", color: "#10b981" }}>{status}</p>
+            <p style={{ margin: "0.5rem 0 0.75rem 0", fontWeight: "bold", color: "#10b981" }}>{status}</p>
+
+            {/* Before & After Size Comparison Badge */}
+            {file && resultBlob && (
+              <div
+                className="size-comparison-badge"
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  padding: "0.6rem 0.9rem",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  margin: "0.5rem 0 1rem 0",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Original Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(file.size)}</strong>
+                </div>
+                <span style={{ color: "#94a3b8", fontWeight: "bold" }}>➔</span>
+                <div style={{ fontSize: "0.85rem" }}>
+                  <span style={{ color: "#64748b" }}>Processed Size: </span>
+                  <strong style={{ color: "#0f172a" }}>{formatBytes(resultBlob.size)}</strong>
+                </div>
+                <div
+                  style={{
+                    padding: "0.25rem 0.6rem",
+                    borderRadius: "16px",
+                    fontSize: "0.8rem",
+                    fontWeight: "bold",
+                    background: resultBlob.size <= file.size ? "#dcfce7" : "#e0f2fe",
+                    color: resultBlob.size <= file.size ? "#15803d" : "#0369a1",
+                  }}
+                >
+                  {resultBlob.size <= file.size
+                    ? `📉 ${((1 - resultBlob.size / file.size) * 100).toFixed(1)}% Smaller`
+                    : `📈 +${(((resultBlob.size - file.size) / file.size) * 100).toFixed(1)}%`}
+                </div>
+              </div>
+            )}
 
             {base64Output && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
